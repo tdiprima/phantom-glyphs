@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+*.dcm
+*.png
+*_ocr_output.md
+.env

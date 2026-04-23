@@ -1,0 +1,11 @@
+[project]
+name = "phantom-glyphs"
+version = "0.1.0"
+description = "OCR stress-test toolkit that generates DICOM images with confusable glyphs (S/$, 0/O, 1/l/I) and benchmarks Chandra OCR 2 accuracy"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=2.2.6",
+    "pillow>=12.2.0",
+    "pydicom>=3.0.2",
+]
