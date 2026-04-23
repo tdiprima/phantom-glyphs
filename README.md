@@ -1,86 +1,87 @@
 # Phantom Glyphs
 
-<!--"phantom" = standard medical imaging test object.-->
+An OCR stress-test toolkit that generates DICOM medical images packed with visually confusing characters and measures how well OCR handles them.
 
-Medical imaging people know what a phantom is (calibration test object), and it perfectly describes what this repo does — test OCR with characters that are phantoms of each other.
+## When `$500` Becomes `S500` on a Medical Bill
 
-<!--uv add numpy pydicom pillow "chandra-ocr2[hf]"-->
+OCR engines routinely confuse characters that look nearly identical: `S` and `$`, `0` and `O`, `1` and `l` and `I`, `8` and `B`. In medical imaging, these errors aren't cosmetic. A misread dosage, a garbled patient ID, or a corrupted billing code can cascade into real clinical and financial problems. The challenge is that most OCR test sets use clean, well-separated text -- they don't stress the exact failure modes that matter in production.
 
----
+## A Calibration Phantom for OCR
 
-Chandra OCR 2 — DICOM Text Extraction Test
+In medical imaging, a *phantom* is a standardized test object used to calibrate equipment. Phantom Glyphs applies the same idea to OCR: it generates a realistic radiology report embedded in a DICOM image, deliberately loaded with the character pairs that break OCR engines. Light scan noise simulates a real-world document. You run your OCR pipeline against it and see exactly where it fails.
 
-Test [Chandra OCR 2](https://github.com/datalab-to/chandra) on DICOM medical images containing text with visually confusing characters (S/\$, 0/O, 1/l/I, 5/S, 8/B, Z/2).
+The test report includes:
 
-## Requirements
+| Confusable Pair | Context in Report |
+|----------------|-------------------|
+| S vs $ | SOLOMON, SOB, S5 vs $500, $5,250, $1,250 |
+| 0 vs O | O'BRIEN, OI01l0II01, 0.2cm, 0.51 |
+| 1 vs l vs I | Il1O0oO01l, 1.1cm, Claire I., MRN field |
+| 5 vs S | S5 segment, 5mm, 58-year-old, $5,250 |
+| 8 vs B | B8B88b badge, rib #8, 6-8 weeks |
+| Z vs 2 | Z-score vs -2.1 |
 
-- Python 3.10+
-- NVIDIA GPU with CUDA (for HuggingFace method)
-- ~10 GB disk for model weights on first run
+## What It Looks Like
 
-No GPU? Use the [vLLM server method](#vllm-server-alternative) instead.
-
-## Quick Start
+Generate the test DICOM and run OCR in three commands:
 
 ```bash
-# 1. Install
-bash install.sh
-source venv/bin/activate
-
-# 2. Create test DICOM with confusing text
+# Create a DICOM image with the confusing-character report
 python create_test_dicom.py
 
-# 3. Run OCR on the DICOM
+# Run Chandra OCR 2 on it
 python run_ocr.py test_ocr.dcm
 ```
 
-That's it. Output prints to terminal and saves to `test_ocr_output.md`.
+Output prints to the terminal and saves to `test_ocr_ocr_output.md`. A preview PNG is also generated so you can visually inspect the rendered text.
 
-## What Each Script Does
+```
+Confusing character pairs in this image:
+  S vs $         | SOLOMON, SOB, S5 vs $500, $5,250, $1,250
+  0 vs O         | O'BRIEN, SOLOMON, OI01l0II01, 0.2cm, 0.51
+  1 vs l vs I    | Il1O0oO01l, 1.1cm, Claire I., MRN field
+  5 vs S         | S5 segment, 5mm, 58-year-old, $5,250
+  8 vs B         | B8B88b badge, rib #8, 6-8 weeks
+  Z vs 2         | Z-score vs -2.1
+```
 
-### `install.sh`
+## Getting Started
 
-Creates a virtualenv and installs:
+### Requirements
 
-- `chandra-ocr[hf]` — Chandra OCR 2 with HuggingFace/PyTorch backend
-- `pydicom` — DICOM file handling
-- `pillow`, `numpy` — image processing
+- Python 3.10+
+- NVIDIA GPU with CUDA (for the HuggingFace method)
+- ~10 GB disk for model weights on first run
 
-### `create_test_dicom.py`
-
-Generates a fake radiology report rendered onto a DICOM image. The report is designed with character pairs that are hard for OCR to distinguish:
-
-| Pair | Where it appears |
-|------|-----------------|
-| S vs \$ | SOLOMON, SOB, S5 vs \$500, \$1,250 |
-| 0 vs O | O'BRIEN, OI01l0II01, 0.2cm |
-| 1 vs l vs I | Il1O0oO01l, 1.1cm, Claire I. |
-| 5 vs S | S5, 5mm, \$5,250 |
-| 8 vs B | B8B88b, rib #8, 6-8 weeks |
-| Z vs 2 | Z-score, -2.1 |
-
-Outputs:
-
-- `test_ocr.dcm` — the DICOM file
-- `test_ocr_preview.png` — visual preview
-
-Custom output path: `python create_test_dicom.py my_image.dcm`
-
-### `run_ocr.py`
-
-Reads a DICOM file, extracts pixel data to a temp PNG, runs Chandra OCR, and prints the extracted text.
+### Install
 
 ```bash
-# Default (HuggingFace, local GPU)
+uv add numpy pydicom pillow "chandra-ocr2[hf]"
+```
+
+Or use the provided install script:
+
+```bash
+bash install.sh
+source venv/bin/activate
+```
+
+### Run
+
+```bash
+# Generate the test DICOM
+python create_test_dicom.py
+
+# Run OCR (default: HuggingFace backend)
 python run_ocr.py test_ocr.dcm
 
-# With vLLM server
+# Or use a remote vLLM server instead of a local GPU
 python run_ocr.py test_ocr.dcm --method vllm
 ```
 
-## vLLM Server Alternative
+### vLLM Server (No Local GPU)
 
-If you don't have a local GPU, run the model on a remote GPU server:
+If you don't have a local GPU, run the model on a remote server:
 
 ```bash
 # On the GPU server
@@ -88,19 +89,18 @@ pip install chandra-ocr
 chandra_vllm   # starts server on port 8000
 
 # On your machine
-pip install chandra-ocr   # base install, no torch needed
-pip install pydicom pillow numpy
-
 export VLLM_API_BASE=http://your-gpu-server:8000/v1
 python run_ocr.py test_ocr.dcm --method vllm
 ```
 
-## First Run
+## Project Structure
 
-The first `run_ocr.py` execution downloads the Chandra OCR 2 model (~8 GB). Subsequent runs use the cached model. Download happens once per machine.
+| File | Purpose |
+|------|---------|
+| `create_test_dicom.py` | Renders a fake radiology report onto a DICOM image with scan noise |
+| `run_ocr.py` | Extracts pixels from a DICOM, runs Chandra OCR 2, prints results |
+| `install.sh` | Sets up a virtualenv with all dependencies |
 
 ## License
 
-Chandra OCR 2 code is Apache 2.0. Model weights use a modified OpenRAIL-M license — free for research, personal use, and startups under $2M revenue. Larger commercial use requires a [Datalab license](https://datalab.to).
-
-<br>
+Chandra OCR 2 code is Apache 2.0. Model weights use a modified OpenRAIL-M license -- free for research, personal use, and startups under $2M revenue. Larger commercial use requires a [Datalab license](https://datalab.to).
