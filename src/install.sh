@@ -3,13 +3,13 @@ set -euo pipefail
 
 echo "=== Chandra OCR 2 - Install ==="
 
-if [[ ! -d "venv" ]]; then
+if [[ ! -d ".venv" ]]; then
     echo "Creating virtual environment..."
-    python3 -m venv venv
+    python3 -m venv .venv
 fi
 
 # shellcheck disable=SC1091
-source venv/bin/activate
+source .venv/bin/activate
 
 echo "Upgrading pip..."
 pip install --upgrade pip
@@ -24,7 +24,7 @@ echo ""
 echo "=== Install complete ==="
 echo ""
 echo "Activate environment before running scripts:"
-echo "  source venv/bin/activate"
+echo "  source .venv/bin/activate"
 echo ""
 echo "NOTE: HuggingFace method requires a CUDA GPU."
 echo "For CPU-only machines, use the vLLM server method instead:"
