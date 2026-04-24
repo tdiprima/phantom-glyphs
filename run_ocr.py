@@ -9,6 +9,7 @@ Workflow:
 """
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -47,6 +48,13 @@ def run_chandra(image_path, output_dir, method="hf"):
     if result.returncode != 0:
         print(f"STDERR:\n{result.stderr}", file=sys.stderr)
         raise RuntimeError(f"chandra exited with code {result.returncode}")
+
+
+def clean_duplicate_markers(text):
+    """Strip doubled list markers produced when OCR wraps already-numbered text in markdown lists."""
+    text = re.sub(r"^(\d+\.)\s+\1", r"\1", text, flags=re.MULTILINE)
+    text = re.sub(r"^(-)\s+\1", r"-", text, flags=re.MULTILINE)
+    return text
 
 
 def find_markdown(output_dir):
@@ -91,7 +99,7 @@ def main():
             sys.exit(1)
 
         with open(md_path) as fh:
-            text = fh.read()
+            text = clean_duplicate_markers(fh.read())
 
         print("=" * 60)
         print("EXTRACTED TEXT")
