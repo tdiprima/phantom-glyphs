@@ -85,10 +85,11 @@ CONFUSING_PAIRS = [
 def find_font(size):
     """Find a sans-serif font where similar characters are hardest to distinguish."""
     candidates = [
-        "/System/Library/Fonts/Helvetica.ttc",
-        "/System/Library/Fonts/SFNSText.ttf",
-        "/Library/Fonts/Arial.ttf",
-        "/System/Library/Fonts/Geneva.ttf",
+        # RHEL / Rocky / Fedora
+        "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf",
+        "/usr/share/fonts/liberation-sans/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/google-noto-sans-fonts/NotoSans-Regular.ttf",
+        # Ubuntu / Debian
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
         "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
