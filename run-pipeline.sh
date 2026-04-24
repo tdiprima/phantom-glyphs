@@ -101,7 +101,20 @@ run_ocr() {
     fi
 }
 
-# Step 3: Summary
+# Step 3: Check OCR accuracy against ground truth
+check_ocr() {
+    local output_md="${DICOM_FILE%.dcm}_ocr_output.md"
+    printf "\n${BOLD}=== Step 3: Self-Check OCR Output ===${RESET}\n"
+
+    if [[ ! -f "${output_md}" ]]; then
+        warn "No OCR output to check (${output_md} missing)"
+        return 1
+    fi
+
+    python "${SCRIPT_DIR}/check_ocr.py" "${output_md}"
+}
+
+# Step 4: Summary
 print_summary() {
     printf "\n${BOLD}=== Pipeline Complete ===${RESET}\n"
     ok "Generated files:"
@@ -123,6 +136,7 @@ main() {
     check_environment
     generate_dicom
     run_ocr "${method}"
+    check_ocr
     print_summary
 }
 
