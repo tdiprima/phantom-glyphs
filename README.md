@@ -21,19 +21,43 @@ The test report includes:
 | 8 vs B | B8B88b badge, rib #8, 6-8 weeks |
 | Z vs 2 | Z-score vs -2.1 |
 
-## What It Looks Like
+## Quick Start
 
-Generate the test DICOM and run OCR in three commands:
+Run the full pipeline in one command:
 
 ```bash
-# Create a DICOM image with the confusing-character report
+bash run-pipeline.sh
+```
+
+This generates a test DICOM, runs Chandra OCR 2 on it, and checks accuracy against ground truth. Use `--method vllm` to use a remote vLLM server instead of a local GPU.
+
+Or run each step individually:
+
+```bash
+# Step 1: Create a DICOM image with the confusing-character report
 python create_test_dicom.py
 
-# Run Chandra OCR 2 on it
+# Step 2: Run Chandra OCR 2 on it
 python run_ocr.py test_ocr.dcm
+
+# Step 3: Check OCR accuracy against ground truth
+python check_ocr.py test_ocr_ocr_output.md
 ```
 
 Output prints to the terminal and saves to `test_ocr_ocr_output.md`. A preview PNG is also generated so you can visually inspect the rendered text.
+
+### Tesseract Alternative
+
+To compare against Tesseract OCR instead of (or alongside) Chandra:
+
+```bash
+pip install pytesseract
+python tesseract_check.py test_ocr.dcm
+```
+
+This runs pytesseract on the DICOM and self-checks against the same ground truth.
+
+### Sample Output
 
 ```
 Confusing character pairs in this image:
@@ -63,20 +87,27 @@ Or use the provided install script:
 
 ```bash
 bash install.sh
-source venv/bin/activate
+source .venv/bin/activate
 ```
 
 ### Run
 
 ```bash
-# Generate the test DICOM
-python create_test_dicom.py
+# Full pipeline (generate → OCR → accuracy check)
+bash run-pipeline.sh
 
-# Run OCR (default: HuggingFace backend)
-python run_ocr.py test_ocr.dcm
+# Or with vLLM backend
+bash run-pipeline.sh --method vllm
+```
 
-# Or use a remote vLLM server instead of a local GPU
-python run_ocr.py test_ocr.dcm --method vllm
+Individual steps:
+
+```bash
+python create_test_dicom.py                 # generate test DICOM
+python run_ocr.py test_ocr.dcm              # run Chandra OCR (default: HuggingFace)
+python run_ocr.py test_ocr.dcm --method vllm  # or use vLLM server
+python check_ocr.py test_ocr_ocr_output.md  # check accuracy vs ground truth
+python tesseract_check.py test_ocr.dcm      # alternative: Tesseract OCR + check
 ```
 
 ### vLLM Server (No Local GPU)
@@ -97,8 +128,11 @@ python run_ocr.py test_ocr.dcm --method vllm
 
 | File | Purpose |
 |------|---------|
+| `run-pipeline.sh` | Runs the full pipeline: generate DICOM → OCR → accuracy check |
 | `create_test_dicom.py` | Renders a fake radiology report onto a DICOM image with scan noise |
 | `run_ocr.py` | Extracts pixels from a DICOM, runs Chandra OCR 2, prints results |
+| `check_ocr.py` | Compares OCR output against ground truth, reports character/word accuracy and confusable-pair errors |
+| `tesseract_check.py` | Alternative OCR path using pytesseract with built-in accuracy check |
 | `install.sh` | Sets up a virtualenv with all dependencies |
 
 ## License
