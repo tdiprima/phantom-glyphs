@@ -74,7 +74,11 @@ def main():
     dicom_path = sys.argv[1]
     method = "hf"
     if "--method" in sys.argv:
-        method = sys.argv[sys.argv.index("--method") + 1]
+        idx = sys.argv.index("--method")
+        if idx + 1 >= len(sys.argv):
+            print("Error: --method requires a value (hf or vllm)", file=sys.stderr)
+            sys.exit(1)
+        method = sys.argv[idx + 1]
 
     if not os.path.exists(dicom_path):
         print(f"Error: {dicom_path} not found", file=sys.stderr)
