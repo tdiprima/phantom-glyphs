@@ -5,6 +5,7 @@ Usage:
     python tesseract_check.py [path/to/test_ocr.dcm]
 """
 
+import os
 import sys
 
 import numpy as np
@@ -45,6 +46,11 @@ def main():
     print("Running pytesseract OCR...\n")
     ocr_text = run_tesseract(image)
 
+    out_file = os.path.splitext(dicom_path)[0] + "_tesseract_output.md"
+    with open(out_file, "w") as fh:
+        fh.write(ocr_text)
+    print(f"Saved to: {out_file}\n")
+
     print("=" * 60)
     print("PYTESSERACT OUTPUT")
     print("=" * 60)
@@ -57,7 +63,7 @@ def main():
     actual_flat = "\n".join(actual_lines)
 
     substitutions = find_substitutions(expected_lines, actual_lines)
-    print_report(expected_flat, actual_flat, substitutions)
+    print_report(expected_flat, actual_flat, substitutions, label="TESSERACT")
 
 
 if __name__ == "__main__":

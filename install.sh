@@ -20,11 +20,18 @@ pip install "chandra-ocr[hf]"
 echo "Installing DICOM and image dependencies..."
 pip install pydicom pillow numpy
 
+echo "Installing pytesseract..."
+pip install pytesseract
+
 echo ""
 echo "=== Install complete ==="
 echo ""
 echo "Activate environment before running scripts:"
 echo "  source .venv/bin/activate"
+echo ""
+echo "NOTE: Tesseract requires the system binary:"
+echo "  Ubuntu/Debian: sudo apt install tesseract-ocr"
+echo "  RHEL/Rocky:    sudo dnf install tesseract"
 echo ""
 echo "NOTE: HuggingFace method requires a CUDA GPU."
 echo "For CPU-only machines, use the vLLM server method instead:"

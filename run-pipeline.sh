@@ -101,24 +101,73 @@ run_ocr() {
     fi
 }
 
-# Step 3: Check OCR accuracy against ground truth
-check_ocr() {
+# Step 3: Check Chandra accuracy against ground truth
+check_chandra() {
     local output_md="${DICOM_FILE%.dcm}_ocr_output.md"
-    printf "\n${BOLD}=== Step 3: Self-Check OCR Output ===${RESET}\n"
+    printf "\n${BOLD}=== Step 3: Check Chandra Accuracy ===${RESET}\n"
 
     if [[ ! -f "${output_md}" ]]; then
-        warn "No OCR output to check (${output_md} missing)"
+        warn "No Chandra output to check (${output_md} missing)"
         return 1
     fi
 
     python "${SCRIPT_DIR}/check_ocr.py" "${output_md}"
 }
 
-# Step 4: Summary
+# Step 4: Run Tesseract OCR + check accuracy
+run_tesseract() {
+    printf "\n${BOLD}=== Step 4: Run Tesseract OCR ===${RESET}\n"
+
+    if ! python -c "import pytesseract" 2>/dev/null; then
+        warn "pytesseract not installed — skipping Tesseract step"
+        return 1
+    fi
+
+    if ! command -v tesseract &>/dev/null; then
+        warn "tesseract binary not found — install with: sudo apt install tesseract-ocr"
+        return 1
+    fi
+
+    info "Processing ${DICOM_FILE} with Tesseract..."
+    python "${SCRIPT_DIR}/tesseract_check.py" "${DICOM_FILE}"
+
+    local output_md="${DICOM_FILE%.dcm}_tesseract_output.md"
+    if [[ -f "${output_md}" ]]; then
+        ok "Tesseract output saved: ${output_md}"
+    else
+        warn "No Tesseract output file found"
+    fi
+}
+
+# Step 5: Compare engines
+compare_engines() {
+    local chandra_md="${DICOM_FILE%.dcm}_ocr_output.md"
+    local tesseract_md="${DICOM_FILE%.dcm}_tesseract_output.md"
+    printf "\n${BOLD}=== Step 5: Compare Chandra vs Tesseract ===${RESET}\n"
+
+    if [[ ! -f "${chandra_md}" ]]; then
+        warn "Chandra output missing — cannot compare"
+        return 1
+    fi
+    if [[ ! -f "${tesseract_md}" ]]; then
+        warn "Tesseract output missing — cannot compare"
+        return 1
+    fi
+
+    python "${SCRIPT_DIR}/compare_ocr.py" "${chandra_md}" "${tesseract_md}"
+}
+
+# Summary
 print_summary() {
     printf "\n${BOLD}=== Pipeline Complete ===${RESET}\n"
     ok "Generated files:"
-    for file in "${DICOM_FILE}" "${DICOM_FILE%.dcm}_preview.png" "${DICOM_FILE%.dcm}_ocr_output.md"; do
+    local files=(
+        "${DICOM_FILE}"
+        "${DICOM_FILE%.dcm}_preview.png"
+        "${DICOM_FILE%.dcm}_ocr_output.md"
+        "${DICOM_FILE%.dcm}_tesseract_output.md"
+    )
+    for file in "${files[@]}"; do
         if [[ -f "${file}" ]]; then
             printf "  ${GREEN}✔${RESET} %s\n" "${file}"
         else
@@ -136,7 +185,9 @@ main() {
     check_environment
     generate_dicom
     run_ocr "${method}"
-    check_ocr
+    check_chandra
+    run_tesseract || true
+    compare_engines || true
     print_summary
 }
 

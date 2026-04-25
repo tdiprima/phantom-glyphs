@@ -9,7 +9,6 @@ python check_ocr.py test_ocr_ocr_output.md
 """
 
 import difflib
-import re
 import sys
 
 from create_test_dicom import CONFUSING_PAIRS, REPORT_TEXT
@@ -87,13 +86,29 @@ def _char_subs(line_num, exp_line, act_line):
     return subs
 
 
-def print_report(expected_text, actual_text, substitutions):
+def compute_metrics(expected_text, actual_text):
+    """Return accuracy metrics as a dict."""
+    expected_lines = normalize(expected_text)
+    actual_lines = normalize(actual_text)
+    expected_flat = "\n".join(expected_lines)
+    actual_flat = "\n".join(actual_lines)
+    subs = find_substitutions(expected_lines, actual_lines)
+    confusable_count = sum(1 for _, _, _, _, cat in subs if cat)
+    return {
+        "char_accuracy": character_accuracy(expected_flat, actual_flat),
+        "word_accuracy": word_accuracy(expected_flat, actual_flat),
+        "total_substitutions": len(subs),
+        "confusable_errors": confusable_count,
+    }
+
+
+def print_report(expected_text, actual_text, substitutions, label="OCR"):
     """Print accuracy metrics and error details."""
     char_acc = character_accuracy(expected_text, actual_text)
     w_acc = word_accuracy(expected_text, actual_text)
 
     print("=" * 60)
-    print("OCR SELF-CHECK REPORT")
+    print(f"{label} SELF-CHECK REPORT")
     print("=" * 60)
     print(f"Character accuracy: {char_acc:.2%}")
     print(f"Word accuracy:      {w_acc:.2%}")
