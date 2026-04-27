@@ -110,6 +110,12 @@ bash run-pipeline.sh --method vllm
 | `compare_ocr.py` | Side-by-side comparison of Chandra vs Tesseract with verdict |
 | `install.sh` | Sets up a virtualenv with all dependencies |
 
+## To add new engine — 3 steps: 
+1. Create engines/yourengine.py, subclass OCREngine
+2. Implement name, is_available(), run(image, work_dir)
+3. Add to ENGINES list in engines/__init__.py
+
+
 ## License
 
 Chandra OCR 2 code is Apache 2.0. Model weights use a modified OpenRAIL-M license -- free for research, personal use, and startups under $2M revenue. Larger commercial use requires a [Datalab license](https://datalab.to).
