@@ -2,10 +2,6 @@
 
 An OCR stress-test toolkit that generates DICOM medical images packed with visually confusing characters and measures how well OCR handles them.
 
-## When `$500` Becomes `S500` on a Medical Bill
-
-OCR engines routinely confuse characters that look nearly identical: `S` and `$`, `0` and `O`, `1` and `l` and `I`, `8` and `B`. In medical imaging, these errors aren't cosmetic. A misread dosage, a garbled patient ID, or a corrupted billing code can cascade into real clinical and financial problems. The challenge is that most OCR test sets use clean, well-separated text -- they don't stress the exact failure modes that matter in production.
-
 ## A Calibration Phantom for OCR
 
 In medical imaging, a *phantom* is a standardized test object used to calibrate equipment. Phantom Glyphs applies the same idea to OCR: it generates a realistic radiology report embedded in a DICOM image, deliberately loaded with the character pairs that break OCR engines. Light scan noise simulates a real-world document. You run your OCR pipeline against it and see exactly where it fails.
