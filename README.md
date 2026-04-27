@@ -26,9 +26,8 @@ The test report includes:
 ### Requirements
 
 - Python 3.10+
-- NVIDIA GPU with CUDA (for Chandra OCR with HuggingFace backend)
-- ~10 GB disk for model weights on first run
-- Tesseract system binary (for the Tesseract comparison)
+- NVIDIA GPU with CUDA (for GPU-based engines)
+- Tesseract system binary (optional, for Tesseract engine)
 
 ### Install
 
@@ -36,8 +35,6 @@ The test report includes:
 bash install.sh
 source .venv/bin/activate
 ```
-
-This installs Chandra OCR, pytesseract, and all dependencies into a `.venv` virtualenv.
 
 For Tesseract, you also need the system binary:
 
@@ -51,70 +48,125 @@ sudo dnf install tesseract
 
 ### Run
 
-The pipeline generates a test DICOM, runs both Chandra and Tesseract OCR on it, and compares their accuracy:
+The pipeline generates a test DICOM, runs all available OCR engines, times each one, and compares their accuracy:
 
 ```bash
 bash run-pipeline.sh
 ```
 
-The five steps are:
-
-1. **Generate** a DICOM image containing a fake radiology report with confusable characters
-2. **Chandra OCR** reads the image
-3. **Check Chandra** accuracy against ground truth
-4. **Tesseract OCR** reads the same image (skipped if tesseract is not installed)
-5. **Compare** both engines side-by-side and pick a winner
-
-Output files are saved to the current directory:
-
-| File | Contents |
-|------|----------|
-| `test_ocr.dcm` | Generated test DICOM |
-| `test_ocr_preview.png` | Visual preview of the rendered text |
-| `test_ocr_ocr_output.md` | Chandra OCR output |
-| `test_ocr_tesseract_output.md` | Tesseract OCR output |
-
-### Running Steps Individually
+Or run the pipeline directly:
 
 ```bash
-python create_test_dicom.py                 # generate test DICOM
-python run_ocr.py test_ocr.dcm              # Chandra OCR (default: HuggingFace)
-python check_ocr.py test_ocr_ocr_output.md  # check accuracy vs ground truth
-python tesseract_check.py test_ocr.dcm      # Tesseract OCR + accuracy check
-python compare_ocr.py                       # compare Chandra vs Tesseract
+python create_test_dicom.py          # generate test DICOM
+python pipeline.py test_ocr.dcm     # run all available engines, compare
 ```
 
-### vLLM Server (No Local GPU)
+The pipeline automatically discovers which engines are available, skips the rest, and prints a comparison table with timing when two or more engines run.
 
-If you don't have a local GPU, run Chandra on a remote server:
+To check a single output file against ground truth:
 
 ```bash
-# On the GPU server
+python check_ocr.py test_ocr_tesseract_output.md
+```
+
+## OCR Engines
+
+The pipeline uses a plugin architecture. Each engine lives in `engines/` and is auto-discovered at runtime. Unavailable engines are skipped.
+
+### Tesseract
+
+Requires the `tesseract` system binary and `pytesseract` Python package (installed by `install.sh`).
+
+### Chandra OCR 2
+
+Runs via the `chandra` CLI. Install with:
+
+```bash
+pip install "chandra-ocr[hf]"
+```
+
+For the vLLM backend instead of HuggingFace:
+
+```bash
+# On a GPU server
 pip install chandra-ocr
 chandra_vllm   # starts server on port 8000
 
-# On your machine
-export VLLM_API_BASE=http://your-gpu-server:8000/v1
+# Run pipeline with vLLM backend
 bash run-pipeline.sh --method vllm
 ```
+
+### LightOn OCR
+
+LightOnOCR is a 1B-parameter model served through [vLLM](https://docs.vllm.ai/). It uses the standard OpenAI-compatible API, so the pipeline talks to it via the `openai` Python package.
+
+**1. Install the `openai` package:**
+
+```bash
+pip install openai
+```
+
+**2. Start a vLLM server with the LightOnOCR model:**
+
+```bash
+# Docker (recommended) — needs vLLM >= 0.18.0 and transformers >= 5.4.0
+docker run --gpus all -p 8000:8000 \
+    vllm/vllm-openai:latest \
+    --model lightonai/LightOnOCR \
+    --max-model-len 4096
+
+# Or system install
+pip install vllm
+vllm serve lightonai/LightOnOCR --max-model-len 4096
+```
+
+If vLLM doesn't recognize the model class, build a custom image that upgrades `transformers`:
+
+```dockerfile
+FROM vllm/vllm-openai:latest
+RUN pip install --no-cache-dir --force-reinstall "transformers>=5.4.0"
+```
+
+**3. Run the pipeline** (no extra flags needed — auto-detected):
+
+```bash
+python pipeline.py test_ocr.dcm
+```
+
+**Configuration via environment variables:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LIGHTON_BASE_URL` | `http://localhost:8000/v1` | vLLM server URL |
+| `LIGHTON_MODEL` | `lightonai/LightOnOCR` | Model name as served by vLLM |
+
+Example pointing to a remote server:
+
+```bash
+export LIGHTON_BASE_URL=http://gpu-box:8000/v1
+python pipeline.py test_ocr.dcm
+```
+
+## Adding a New Engine
+
+1. Create `engines/yourengine.py` with a class that extends `OCREngine`
+2. Implement `name`, `is_available()`, and `run(image, work_dir)`
+3. Import and add to the `ENGINES` list in `engines/__init__.py`
+
+See `engines/base.py` for the interface and any existing engine for a working example.
 
 ## Project Structure
 
 | File | Purpose |
 |------|---------|
-| `run-pipeline.sh` | Full pipeline: generate → Chandra → Tesseract → compare |
-| `create_test_dicom.py` | Renders a fake radiology report onto a DICOM image with scan noise |
-| `run_ocr.py` | Extracts pixels from a DICOM, runs Chandra OCR 2, saves results |
-| `check_ocr.py` | Checks any OCR output against ground truth, reports accuracy and confusable-pair errors |
-| `tesseract_check.py` | Runs Tesseract OCR on a DICOM and checks accuracy |
-| `compare_ocr.py` | Side-by-side comparison of Chandra vs Tesseract with verdict |
-| `install.sh` | Sets up a virtualenv with all dependencies |
-
-## To add new engine — 3 steps: 
-1. Create engines/yourengine.py, subclass OCREngine
-2. Implement name, is_available(), run(image, work_dir)
-3. Add to ENGINES list in engines/__init__.py
-
+| `pipeline.py` | Run all available engines, time each, compare metrics |
+| `create_test_dicom.py` | Render a fake radiology report onto a DICOM image with scan noise |
+| `check_ocr.py` | Check any OCR output against ground truth, report accuracy |
+| `run-pipeline.sh` | Shell wrapper: generate DICOM then run pipeline |
+| `dicom_utils.py` | Shared DICOM-to-PIL-Image conversion |
+| `install.sh` | Set up virtualenv with dependencies |
+| `engines/` | OCR engine plugins (Chandra, Tesseract, LightOn) |
+| `engines/base.py` | `OCREngine` abstract base class |
 
 ## License
 
