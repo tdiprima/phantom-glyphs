@@ -1,4 +1,4 @@
-# Phantom Glyphs 🧪 ⚙️
+# Phantom Glyphs 👻 🌫️ 🫥 🌑 🕯️
 
 An OCR stress-test toolkit that generates DICOM medical images packed with visually confusing characters and measures how well OCR handles them.
 
